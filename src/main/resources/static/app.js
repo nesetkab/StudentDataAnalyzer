@@ -86,7 +86,6 @@ document.addEventListener('DOMContentLoaded', () => {
         errorMessageDiv.style.display = 'block';
         successMessageDiv.style.display = 'none';
     }
-
     function displaySuccess(message) {
         successMessageDiv.textContent = message;
         successMessageDiv.style.display = 'block';
