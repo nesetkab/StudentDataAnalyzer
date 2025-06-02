@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Data Analyzer</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/randomcolor/0.6.1/randomColor.min.js"></script>
+</head>
+<body>
+<header>
+    <h1>Student Data Trend Analyzer</h1>
+</header>
+
+<main>
+    <section id="upload-section">
+        <h2>Upload Student Data CSV</h2>
+        <p>
+            Expected CSV columns: Student ID, Student Name, Grade, Special Ed, Scale Score, Performance,
+            Language Performance, Listening Comprehension Performance, Reading Informational Text Performance,
+            Reading Literature Performance, Ethnicity, Gender.
+        </p>
+        <div>
+            <label for="csvFile">Select CSV File:</label>
+            <input type="file" id="csvFile" accept=".csv" class="file-input">
+        </div>
+        <div>
+            <label for="dataYear">Enter Academic Year (e.g., 2023):</label>
+            <input type="number" id="dataYear" placeholder="YYYY" min="1900" max="2100" class="year-input">
+        </div>
+        <button id="uploadButton">Upload and Analyze</button>
+        <div id="loadingMessage" class="loading-message" style="display:none;">
+            <div class="spinner"></div>
+            Processing... This may take a moment.
+        </div>
+        <div id="errorMessage" class="error-message"></div>
+        <div id="successMessage" class="success-message"></div>
+    </section>
+
+    <section id="results-section" style="display:none;">
+        <h2>Analysis Results for <span id="resultsYear"></span> (<span id="resultsFileName"></span>)</h2>
+        <p>Total Unpivoted Records Processed: <span id="totalRecords"></span></p>
+
+        <div class="tab-navigation">
+            <button class="tab-button active" data-tab="performanceDistribution">Performance Distribution</button>
+            <button class="tab-button" data-tab="avgScaleScores">Avg. Scale Scores</button>
+            <button class="tab-button" data-tab="passRates">Pass Rates</button>
+            <button class="tab-button" data-tab="specialEdComparison">Sp.Ed Comparison</button>
+            <button class="tab-button" data-tab="demographics">Demographics</button>
+        </div>
+
+        <div id="tab-performanceDistribution" class="tab-panel active">
+            <div class="chart-container">
+                <h3>Performance Level Distribution by Subject</h3>
+                <p>Shows the count of students at each performance level (e.g., Proficient, Basic) for different subjects.</p>
+                <canvas id="performanceDistributionChart"></canvas>
+            </div>
+        </div>
+
+        <div id="tab-avgScaleScores" class="tab-panel">
+            <div class="chart-container">
+                <h3>Average Scale Score by Subject</h3>
+                <p>Displays the average overall 'Scale Score' for students, grouped by the subject/assessment area.</p>
+                <canvas id="avgScaleScoreBySubjectChart"></canvas>
+            </div>
+        </div>
+
+        <div id="tab-passRates" class="tab-panel">
+            <div class="chart-container">
+                <h3>Pass Rate by Subject (Based on Overall Scale Score)</h3>
+                <p>Shows the percentage of students passing (based on their overall 'Scale Score') for each subject/assessment area.</p>
+                <canvas id="passRateBySubjectChart"></canvas>
+            </div>
+        </div>
+
+        <div id="tab-specialEdComparison" class="tab-panel">
+            <div class="chart-container">
+                <h3>Average Scale Score: Special Ed vs. Non-Special Ed</h3>
+                <p>Compares the average overall 'Scale Score' for Special Ed vs. Non-Special Ed students, across different subjects.</p>
+                <label for="spEdSubjectFilter">Filter by Subject:</label>
+                <select id="spEdSubjectFilter"></select>
+                <canvas id="avgScaleScoreBySpecialEdChart"></canvas>
+            </div>
+        </div>
+
+        <div id="tab-demographics" class="tab-panel">
+            <div class="chart-container">
+                <h3>Average Scale Score by Ethnicity</h3>
+                <canvas id="avgScoreByEthnicityChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Average Scale Score by Gender</h3>
+                <canvas id="avgScoreByGenderChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Average Scale Score by Grade Level</h3>
+                <canvas id="avgScoreByGradeLevelChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Average Scale Score by Overall Performance Level</h3>
+                <canvas id="avgScoreByOverallPerformanceChart"></canvas>
+            </div>
+        </div>
+    </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

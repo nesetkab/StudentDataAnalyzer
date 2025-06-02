@@ -1,0 +1,243 @@
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    background-color: #f8f9fa; /* Light gray background */
+    color: #343a40; /* Dark gray text */
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+header {
+    background: #007bff; /* Primary blue */
+    color: #fff;
+    padding: 1.5rem 1rem;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+header h1 {
+    margin: 0;
+    font-size: 2rem;
+}
+
+main {
+    flex-grow: 1;
+    padding: 20px;
+    max-width: 1200px;
+    width: 95%;
+    margin: 20px auto;
+    background-color: #ffffff; /* White content background */
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+}
+
+#upload-section, #results-section {
+    background: #fff;
+    padding: 25px;
+    margin-bottom: 25px;
+    border-radius: 8px;
+    border: 1px solid #e9ecef; /* Light border */
+}
+
+#upload-section h2, #results-section h2 {
+    color: #007bff;
+    margin-top: 0;
+    border-bottom: 2px solid #dee2e6;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+#upload-section p {
+    font-size: 0.9rem;
+    color: #6c757d; /* Muted text color */
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    margin-top: 15px;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #495057;
+}
+
+.file-input, .year-input, select {
+    width: calc(100% - 22px); /* Full width minus padding and border */
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ced4da; /* Standard input border */
+    border-radius: 4px;
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+    font-size: 1rem;
+}
+
+.file-input:focus, .year-input:focus, select:focus {
+    border-color: #80bdff; /* Blue border on focus */
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+
+button { /* General button style */
+    background-color: #28a745; /* Success green */
+    color: white;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1.05rem;
+    transition: background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    margin-top: 10px;
+}
+
+button:hover {
+    background-color: #218838; /* Darker green on hover */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+}
+
+button:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* Tab Navigation Styles */
+.tab-navigation {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.tab-button {
+    padding: 10px 15px;
+    cursor: pointer;
+    border: none;
+    background-color: transparent;
+    color: #007bff;
+    font-size: 1rem;
+    font-weight: 500;
+    margin-right: 5px; /* Spacing between tab buttons */
+    border-radius: 5px 5px 0 0; /* Rounded top corners */
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.tab-button:hover {
+    background-color: #e9ecef; /* Light hover background */
+    color: #0056b3;
+}
+
+.tab-button.active {
+    background-color: #007bff; /* Active tab background */
+    color: #fff; /* Active tab text color */
+    border-bottom: 2px solid #0056b3; /* Emphasize active tab */
+}
+
+/* Tab Panel Styles */
+.tab-panel {
+    display: none; /* Hidden by default */
+    padding: 20px 0; /* Padding for content within tab panel */
+    animation: fadeIn 0.5s; /* Fade in animation */
+}
+
+.tab-panel.active {
+    display: block; /* Shown when active */
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+
+.chart-container {
+    margin-top: 35px;
+    padding: 20px;
+    border: 1px solid #dee2e6; /* Lighter border for chart containers */
+    border-radius: 6px;
+    background-color: #fdfdff; /* Slightly off-white for chart background */
+}
+.chart-container:first-child { /* For tab panels with multiple charts */
+    margin-top: 0;
+}
+
+
+.chart-container h3 {
+    color: #343a40;
+    margin-top: 0;
+    font-size: 1.3rem;
+}
+.chart-container p {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-bottom: 15px;
+}
+
+
+canvas {
+    max-width: 100%;
+    height: 350px;  /*Fixed height for consistency, adjust as needed */
+    max-height: 200px;
+    /* Consider max-height if you want them to shrink on smaller viewports but not exceed this */
+    border-radius: 4px;
+}
+
+.error-message {
+    color: #dc3545; /* Danger red */
+    background-color: #f8d7da; /* Light red background */
+    border: 1px solid #f5c6cb; /* Reddish border */
+    padding: 10px;
+    margin-top: 15px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.success-message {
+    color: #155724; /* Dark green text */
+    background-color: #d4edda; /* Light green background */
+    border: 1px solid #c3e6cb; /* Greenish border */
+    padding: 10px;
+    margin-top: 15px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+
+.loading-message {
+    display: flex;
+    align-items: center;
+    margin-top: 15px;
+    color: #007bff;
+    font-weight: 500;
+}
+
+.spinner {
+    border: 4px solid #f3f3f3; /* Light grey */
+    border-top: 4px solid #007bff; /* Blue */
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: spin 1s linear infinite;
+    margin-right: 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+footer {
+    text-align: center;
+    padding: 1.5rem 1rem;
+    background-color: #343a40; /* Dark footer background */
+    color: #adb5bd; /* Lighter text for footer */
+    margin-top: auto; /* Pushes footer to bottom */
+}
+
+footer p {
+    margin: 0;
+    font-size: 0.9rem;
+}
