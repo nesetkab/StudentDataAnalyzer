@@ -5,140 +5,184 @@ package com.example.studentdataanalyzer.service;
 import com.example.studentdataanalyzer.model.StudentData;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.LinkedHashMap; // To maintain insertion order for charts
+import java.util.LinkedHashMap;
 
 @Service
 public class DataAnalysisService {
 
-    /**
-     * Calculates the distribution of performance levels for each subject within each year.
-     * Example: {2023: {"Language Performance": {"Proficient": 50, "Basic": 20}}}
-     */
-    public Map<Integer, Map<String, Map<String, Long>>> calculatePerformanceLevelDistributionBySubjectByYear(List<StudentData> data) {
-        if (data == null || data.isEmpty()) {
-            return new LinkedHashMap<>();
-        }
-        return data.stream()
-                .collect(Collectors.groupingBy(StudentData::getYear, LinkedHashMap::new, // Group by year
-                        Collectors.groupingBy(StudentData::getSubject, LinkedHashMap::new, // Then by subject
-                                Collectors.groupingBy(StudentData::getPerformanceLevel, LinkedHashMap::new, // Then by performance level
-                                        Collectors.counting())))); // Count occurrences
+    private List<StudentData> getUniqueStudentYearEntries(List<StudentData> allData) {
+        if (allData == null || allData.isEmpty()) return new ArrayList<>();
+        return new ArrayList<>(allData.stream()
+                .collect(Collectors.toMap(
+                        sd -> sd.getStudentId() + "_" + sd.getYear(),
+                        sd -> sd,
+                        (sd1, sd2) -> sd1
+                )).values());
     }
 
-    /**
-     * Calculates the average overall Scale Score for each subject within each year.
-     * Note: ScaleScore is the overall score, repeated for each unpivoted subject entry.
-     */
-    public Map<Integer, Map<String, Double>> calculateAverageScaleScoreBySubjectByYear(List<StudentData> data) {
-        if (data == null || data.isEmpty()) {
-            return new LinkedHashMap<>();
-        }
-        return data.stream()
+    public Map<Integer, Map<String, Map<String, Long>>> calculateSubjectPerformanceLevelDistributionByYear(List<StudentData> allUnpivotedData) {
+        if (allUnpivotedData == null || allUnpivotedData.isEmpty()) return new LinkedHashMap<>();
+        return allUnpivotedData.stream()
+                .filter(sd -> sd.getSubjectArea() != null && sd.getSubjectPerformanceLevel() != null)
                 .collect(Collectors.groupingBy(StudentData::getYear, LinkedHashMap::new,
-                        Collectors.groupingBy(StudentData::getSubject, LinkedHashMap::new,
-                                Collectors.averagingDouble(StudentData::getScaleScore))));
+                        Collectors.groupingBy(StudentData::getSubjectArea, LinkedHashMap::new,
+                                Collectors.groupingBy(StudentData::getSubjectPerformanceLevel, LinkedHashMap::new,
+                                        Collectors.counting()))));
     }
 
-    /**
-     * Calculates the average overall Scale Score grouped by Special Ed status, then by subject, then by year.
-     */
-    public Map<Boolean, Map<Integer, Map<String, Double>>> calculateAverageScaleScoreBySpecialEdAndSubjectByYear(List<StudentData> data) {
-        if (data == null || data.isEmpty()) {
-            return new LinkedHashMap<>();
-        }
-        return data.stream()
-                .collect(Collectors.groupingBy(StudentData::isSpecialEd, LinkedHashMap::new, // Primary group: Special Ed status
-                        Collectors.groupingBy(StudentData::getYear, LinkedHashMap::new,      // Secondary group: Year
-                                Collectors.groupingBy(StudentData::getSubject, LinkedHashMap::new, // Tertiary group: Subject
-                                        Collectors.averagingDouble(StudentData::getScaleScore))))); // Aggregate: Average Scale Score
-    }
-
-
-    /**
-     * Calculates the number of students passing (based on overall Scale Score) for each subject within each year.
-     */
-    public Map<Integer, Map<String, Long>> countPassingStudentsBySubjectByYear(List<StudentData> data) {
-        if (data == null || data.isEmpty()) {
-            return new LinkedHashMap<>();
-        }
-        return data.stream()
-                .filter(StudentData::isPassing) // Filter for students who are passing based on overall scale score
+    public Map<Integer, Map<String, Map<String, Long>>> calculateRiseElaProficiencyDistributionByGradeByYear(List<StudentData> allUnpivotedData) {
+        if (allUnpivotedData == null || allUnpivotedData.isEmpty()) return new LinkedHashMap<>();
+        List<StudentData> uniqueStudentEntries = getUniqueStudentYearEntries(allUnpivotedData);
+        return uniqueStudentEntries.stream()
+                .filter(sd -> sd.getRiseElaProficiencyLevel() != null)
                 .collect(Collectors.groupingBy(StudentData::getYear, LinkedHashMap::new,
-                        Collectors.groupingBy(StudentData::getSubject, LinkedHashMap::new,
-                                Collectors.counting())));
+                        Collectors.groupingBy(StudentData::getGradeLevel, LinkedHashMap::new,
+                                Collectors.groupingBy(StudentData::getRiseElaProficiencyLevel, LinkedHashMap::new,
+                                        Collectors.counting()))));
     }
 
-    /**
-     * Calculates the pass rate (percentage, based on overall Scale Score) for each subject within each year.
-     */
-    public Map<Integer, Map<String, Double>> calculatePassRateBySubjectByYear(List<StudentData> data) {
-        if (data == null || data.isEmpty()) {
-            return new LinkedHashMap<>();
-        }
-        // Total students per subject per year
-        Map<Integer, Map<String, Long>> totalStudentsPerSubjectYear = data.stream()
+    public Map<Integer, Map<String, Map<String, Long>>> calculateMathProficiencyDistributionByGradeByYear(List<StudentData> allUnpivotedData) {
+        if (allUnpivotedData == null || allUnpivotedData.isEmpty()) return new LinkedHashMap<>();
+        List<StudentData> uniqueStudentEntries = getUniqueStudentYearEntries(allUnpivotedData);
+        return uniqueStudentEntries.stream()
+                .filter(sd -> sd.getMathProficiencyLevel() != null)
                 .collect(Collectors.groupingBy(StudentData::getYear, LinkedHashMap::new,
-                        Collectors.groupingBy(StudentData::getSubject, LinkedHashMap::new,
-                                Collectors.counting())));
-
-        // Passing students per subject per year
-        Map<Integer, Map<String, Long>> passingStudentsPerSubjectYear = countPassingStudentsBySubjectByYear(data);
-
-        Map<Integer, Map<String, Double>> passRate = new LinkedHashMap<>();
-        totalStudentsPerSubjectYear.forEach((year, subjectMap) -> {
-            Map<String, Double> subjectPassRate = new LinkedHashMap<>();
-            subjectMap.forEach((subject, totalCount) -> {
-                long passingCount = passingStudentsPerSubjectYear.getOrDefault(year, new LinkedHashMap<>()).getOrDefault(subject, 0L);
-                double rate = (totalCount > 0) ? (double) passingCount / totalCount * 100.0 : 0.0;
-                subjectPassRate.put(subject, Math.round(rate * 100.0) / 100.0); // Round to 2 decimal places
-            });
-            if (!subjectPassRate.isEmpty()) {
-                passRate.put(year, subjectPassRate);
-            }
-        });
-        return passRate;
+                        Collectors.groupingBy(StudentData::getGradeLevel, LinkedHashMap::new,
+                                Collectors.groupingBy(StudentData::getMathProficiencyLevel, LinkedHashMap::new,
+                                        Collectors.counting()))));
     }
 
-    /**
-     * Calculates average scale score by a given demographic field (e.g., Ethnicity, Gender) for each year.
-     * This requires careful handling of unpivoted data to avoid double-counting student scale scores.
-     * We group by student ID first within each year and demographic to get unique scale scores.
-     */
-    public Map<Integer, Map<String, Double>> calculateAverageScaleScoreByDemographicByYear(List<StudentData> data, String demographicType) {
-        if (data == null || data.isEmpty()) {
-            return new LinkedHashMap<>();
-        }
-        // Temporary structure to hold unique student scale scores for demographic grouping
-        // StudentId -> {DemographicValue, ScaleScore}
-        // This is to ensure each student's scale score is counted once per year for a given demographic.
-
-        // Step 1: Get unique (Year, StudentID) -> (DemographicValue, ScaleScore)
-        // This ensures that if a student has multiple subject entries, their scale score and demographic are considered once.
-        Map<Integer, Map<String, StudentData>> uniqueStudentEntriesByYear = data.stream()
+    public Map<Integer, Double> calculateAverageOverallScaleScoreByYear(List<StudentData> allUnpivotedData) {
+        if (allUnpivotedData == null || allUnpivotedData.isEmpty()) return new LinkedHashMap<>();
+        List<StudentData> uniqueStudentEntries = getUniqueStudentYearEntries(allUnpivotedData);
+        return uniqueStudentEntries.stream()
                 .collect(Collectors.groupingBy(StudentData::getYear, LinkedHashMap::new,
-                        Collectors.toMap(StudentData::getStudentId, sd -> sd, (sd1, sd2) -> sd1) // Keep first entry if duplicate studentId in same year
+                        Collectors.collectingAndThen(
+                                Collectors.averagingDouble(StudentData::getScaleScore),
+                                avg -> Math.round(avg * 100.0) / 100.0)
                 ));
+    }
 
-        // Step 2: Group these unique entries by demographic and calculate average scale score
+    public Map<Integer, Map<String, Double>> calculateAverageOverallScaleScoreOfStudentsInSubjectAreaGroupsByYear(List<StudentData> allUnpivotedData) {
+        if (allUnpivotedData == null || allUnpivotedData.isEmpty()) return new LinkedHashMap<>();
+        Map<Integer, Map<String, Set<StudentData>>> uniqueStudentsByYearSubjectArea = allUnpivotedData.stream()
+                .filter(sd -> sd.getSubjectArea() != null)
+                .collect(Collectors.groupingBy(StudentData::getYear, LinkedHashMap::new,
+                        Collectors.groupingBy(StudentData::getSubjectArea, LinkedHashMap::new,
+                                Collectors.toSet())));
+
         Map<Integer, Map<String, Double>> result = new LinkedHashMap<>();
-        uniqueStudentEntriesByYear.forEach((year, studentMap) -> {
-            Map<String, Double> demographicAverage = studentMap.values().stream()
-                    .collect(Collectors.groupingBy(sd -> {
-                        switch (demographicType.toLowerCase()) {
-                            case "ethnicity": return sd.getEthnicity();
-                            case "gender": return sd.getGender();
-                            case "gradelevel": return sd.getGradeLevel();
-                            case "overallperformance": return sd.getOverallPerformance();
-                            default: return "Unknown";
-                        }
-                    }, LinkedHashMap::new, Collectors.averagingDouble(StudentData::getScaleScore)));
-            if (!demographicAverage.isEmpty()) {
-                result.put(year, demographicAverage);
+        uniqueStudentsByYearSubjectArea.forEach((year, subjectAreaMap) -> {
+            Map<String, Double> subjectAreaAverages = new LinkedHashMap<>();
+            subjectAreaMap.forEach((subjectArea, studentSet) -> {
+                if (!studentSet.isEmpty()) {
+                    double average = studentSet.stream().mapToDouble(StudentData::getScaleScore).average().orElse(0.0);
+                    subjectAreaAverages.put(subjectArea, Math.round(average * 100.0) / 100.0);
+                }
+            });
+            if (!subjectAreaAverages.isEmpty()) result.put(year, subjectAreaAverages);
+        });
+        return result;
+    }
+
+    public Map<Boolean, Map<Integer, Map<String, Double>>> calculateAverageOverallScaleScoreBySpecialEdAndSubjectAreaByYear(List<StudentData> allUnpivotedData) {
+        if (allUnpivotedData == null || allUnpivotedData.isEmpty()) return new LinkedHashMap<>();
+        Map<Boolean, Map<Integer, Map<String, Set<StudentData>>>> uniqueStudentsBySpEdYearSubjectArea = allUnpivotedData.stream()
+                .filter(sd -> sd.getSubjectArea() != null)
+                .collect(Collectors.groupingBy(StudentData::isSpecialEd, LinkedHashMap::new,
+                        Collectors.groupingBy(StudentData::getYear, LinkedHashMap::new,
+                                Collectors.groupingBy(StudentData::getSubjectArea, LinkedHashMap::new,
+                                        Collectors.toSet()))));
+
+        Map<Boolean, Map<Integer, Map<String, Double>>> result = new LinkedHashMap<>();
+        uniqueStudentsBySpEdYearSubjectArea.forEach((isSpEd, yearMap) -> {
+            Map<Integer, Map<String, Double>> yearAverages = new LinkedHashMap<>();
+            yearMap.forEach((year, subjectAreaMap) -> {
+                Map<String, Double> subjectAreaAverages = new LinkedHashMap<>();
+                subjectAreaMap.forEach((subjectArea, studentSet) -> {
+                    if (!studentSet.isEmpty()) {
+                        double average = studentSet.stream().mapToDouble(StudentData::getScaleScore).average().orElse(0.0);
+                        subjectAreaAverages.put(subjectArea, Math.round(average * 100.0) / 100.0);
+                    }
+                });
+                if (!subjectAreaAverages.isEmpty()) yearAverages.put(year, subjectAreaAverages);
+            });
+            if (!yearAverages.isEmpty()) result.put(isSpEd, yearAverages);
+        });
+        return result;
+    }
+
+    public Map<Integer, Long> countElaPassingStudentsByYear(List<StudentData> allUnpivotedData) {
+        if (allUnpivotedData == null || allUnpivotedData.isEmpty()) return new LinkedHashMap<>();
+        List<StudentData> uniqueStudentEntries = getUniqueStudentYearEntries(allUnpivotedData);
+        return uniqueStudentEntries.stream()
+                .filter(StudentData::isElaPassing)
+                .collect(Collectors.groupingBy(StudentData::getYear, LinkedHashMap::new,
+                        Collectors.counting()));
+    }
+
+    public Map<Integer, Double> calculateOverallElaPassRateByYear(List<StudentData> allUnpivotedData) {
+        if (allUnpivotedData == null || allUnpivotedData.isEmpty()) return new LinkedHashMap<>();
+        List<StudentData> uniqueStudentEntries = getUniqueStudentYearEntries(allUnpivotedData);
+
+        List<StudentData> elaAssessedUniqueStudents = uniqueStudentEntries.stream()
+                .filter(sd -> sd.getRiseElaProficiencyLevel() != null && !sd.getRiseElaProficiencyLevel().startsWith("N/A"))
+                .collect(Collectors.toList());
+
+        Map<Integer, Long> totalElaAssessedUniqueStudentsByYear = elaAssessedUniqueStudents.stream()
+                .collect(Collectors.groupingBy(StudentData::getYear, LinkedHashMap::new,
+                        Collectors.counting()));
+
+        Map<Integer, Long> passingElaUniqueStudentsByYear = elaAssessedUniqueStudents.stream()
+                .filter(StudentData::isElaPassing)
+                .collect(Collectors.groupingBy(StudentData::getYear, LinkedHashMap::new,
+                        Collectors.counting()));
+
+        Map<Integer, Double> passRateByYear = new LinkedHashMap<>();
+        totalElaAssessedUniqueStudentsByYear.forEach((year, totalCount) -> {
+            if (totalCount > 0) {
+                long passingCount = passingElaUniqueStudentsByYear.getOrDefault(year, 0L);
+                double rate = (double) passingCount / totalCount * 100.0;
+                passRateByYear.put(year, Math.round(rate * 100.0) / 100.0);
+            } else {
+                passRateByYear.put(year, 0.0);
             }
         });
+        return passRateByYear;
+    }
+
+    public Map<Integer, Map<String, Double>> calculateAverageOverallScaleScoreByDemographicByYear(List<StudentData> allUnpivotedData, String demographicType) {
+        if (allUnpivotedData == null || allUnpivotedData.isEmpty()) return new LinkedHashMap<>();
+        List<StudentData> uniqueStudentEntries = getUniqueStudentYearEntries(allUnpivotedData);
+
+        Map<Integer, Map<String, Double>> result = new LinkedHashMap<>();
+        uniqueStudentEntries.stream()
+                .collect(Collectors.groupingBy(StudentData::getYear, LinkedHashMap::new,
+                        Collectors.groupingBy(sd -> {
+                            String demographicValue = "Unknown";
+                            switch (demographicType.toLowerCase()) {
+                                case "ethnicity": demographicValue = sd.getEthnicity(); break;
+                                case "gender": demographicValue = sd.getGender(); break;
+                                case "gradelevel": demographicValue = sd.getGradeLevel(); break;
+                                case "overallperformance_csv": demographicValue = sd.getOverallPerformanceCsv(); break;
+                                case "riseproficiency_ela": demographicValue = sd.getRiseElaProficiencyLevel(); break;
+                                case "mathproficiency": demographicValue = sd.getMathProficiencyLevel(); break;
+                                case "ell": demographicValue = sd.isEll() ? "Yes" : "No"; break;
+                                case "specialed": demographicValue = sd.isSpecialEd() ? "Yes" : "No"; break;
+                            }
+                            return demographicValue != null ? demographicValue : "Unknown";
+                        }, LinkedHashMap::new, Collectors.averagingDouble(StudentData::getScaleScore))
+                ))
+                .forEach((year, demographicMap) -> {
+                    Map<String, Double> roundedMap = new LinkedHashMap<>();
+                    demographicMap.forEach((key, value) -> roundedMap.put(key, Math.round(value * 100.0)/100.0));
+                    if(!roundedMap.isEmpty()) result.put(year, roundedMap);
+                });
         return result;
     }
 }

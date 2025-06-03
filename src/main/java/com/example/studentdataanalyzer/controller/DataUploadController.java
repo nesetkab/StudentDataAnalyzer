@@ -38,7 +38,7 @@ public class DataUploadController {
     @PostMapping("/upload")
     public ResponseEntity<Map<String, Object>> uploadAndAnalyzeData(
             @RequestParam("file") MultipartFile file,
-            @RequestParam("year") int year) { // Added year parameter
+            @RequestParam("year") int year) {
         LOGGER.info("Received file upload request: " + file.getOriginalFilename() + " for year: " + year);
         Map<String, Object> responseBody = new HashMap<>();
 
@@ -47,7 +47,7 @@ public class DataUploadController {
             responseBody.put("error", "Please select a CSV file to upload.");
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseBody);
         }
-        if (year <= 1900 || year > 2100) { // Basic year validation
+        if (year <= 1900 || year > 2100) {
             LOGGER.warning("Invalid year provided: " + year);
             responseBody.put("error", "Please provide a valid year (e.g., 2023).");
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseBody);
@@ -55,7 +55,7 @@ public class DataUploadController {
 
 
         try {
-            List<StudentData> studentDataList = csvParserService.parseCsv(file, year); // Pass year to parser
+            List<StudentData> studentDataList = csvParserService.parseCsv(file, year);
             LOGGER.info("Successfully parsed CSV. Number of unpivoted records: " + studentDataList.size());
 
             if (studentDataList.isEmpty() && !(file.getSize() > 0)) {
@@ -64,29 +64,28 @@ public class DataUploadController {
                 return ResponseEntity.ok(responseBody);
             }
 
-            // Perform new analyses
-            Map<Integer, Map<String, Map<String, Long>>> performanceDistribution = dataAnalysisService.calculatePerformanceLevelDistributionBySubjectByYear(studentDataList);
-            Map<Integer, Map<String, Double>> avgScaleScoresBySubjYear = dataAnalysisService.calculateAverageScaleScoreBySubjectByYear(studentDataList);
-            Map<Boolean, Map<Integer, Map<String, Double>>> avgScaleScoresBySpEdSubjYear = dataAnalysisService.calculateAverageScaleScoreBySpecialEdAndSubjectByYear(studentDataList);
-            Map<Integer, Map<String, Long>> passingCountsBySubjYear = dataAnalysisService.countPassingStudentsBySubjectByYear(studentDataList);
-            Map<Integer, Map<String, Double>> passRatesBySubjYear = dataAnalysisService.calculatePassRateBySubjectByYear(studentDataList);
-
-            Map<Integer, Map<String, Double>> avgScoreByEthnicity = dataAnalysisService.calculateAverageScaleScoreByDemographicByYear(studentDataList, "ethnicity");
-            Map<Integer, Map<String, Double>> avgScoreByGender = dataAnalysisService.calculateAverageScaleScoreByDemographicByYear(studentDataList, "gender");
-            Map<Integer, Map<String, Double>> avgScoreByGradeLevel = dataAnalysisService.calculateAverageScaleScoreByDemographicByYear(studentDataList, "gradelevel");
-            Map<Integer, Map<String, Double>> avgScoreByOverallPerformance = dataAnalysisService.calculateAverageScaleScoreByDemographicByYear(studentDataList, "overallperformance");
-
-
             Map<String, Object> analysisResults = new HashMap<>();
-            analysisResults.put("performanceLevelDistributionBySubjectByYear", performanceDistribution);
-            analysisResults.put("averageScaleScoreBySubjectByYear", avgScaleScoresBySubjYear);
-            analysisResults.put("averageScaleScoreBySpecialEdAndSubjectByYear", avgScaleScoresBySpEdSubjYear);
-            analysisResults.put("passingCountsBySubjectByYear", passingCountsBySubjYear);
-            analysisResults.put("passRatesBySubjectByYear", passRatesBySubjYear);
-            analysisResults.put("averageScaleScoreByEthnicityByYear", avgScoreByEthnicity);
-            analysisResults.put("averageScaleScoreByGenderByYear", avgScoreByGender);
-            analysisResults.put("averageScaleScoreByGradeLevelByYear", avgScoreByGradeLevel);
-            analysisResults.put("averageScaleScoreByOverallPerformanceByYear", avgScoreByOverallPerformance);
+
+            analysisResults.put("subjectPerformanceLevelDistributionByYear", dataAnalysisService.calculateSubjectPerformanceLevelDistributionByYear(studentDataList));
+            analysisResults.put("riseElaProficiencyDistributionByGradeByYear", dataAnalysisService.calculateRiseElaProficiencyDistributionByGradeByYear(studentDataList));
+            analysisResults.put("mathProficiencyDistributionByGradeByYear", dataAnalysisService.calculateMathProficiencyDistributionByGradeByYear(studentDataList));
+
+            analysisResults.put("averageOverallScaleScoreByYear", dataAnalysisService.calculateAverageOverallScaleScoreByYear(studentDataList));
+            analysisResults.put("averageOverallScaleScoreOfStudentsInSubjectAreaGroupsByYear", dataAnalysisService.calculateAverageOverallScaleScoreOfStudentsInSubjectAreaGroupsByYear(studentDataList));
+            analysisResults.put("averageOverallScaleScoreBySpecialEdAndSubjectAreaByYear", dataAnalysisService.calculateAverageOverallScaleScoreBySpecialEdAndSubjectAreaByYear(studentDataList));
+
+            analysisResults.put("overallElaPassRateByYear", dataAnalysisService.calculateOverallElaPassRateByYear(studentDataList));
+            // Add overall Math pass rate if Math proficiency implies passing
+
+            analysisResults.put("averageOverallScaleScoreByEthnicityByYear", dataAnalysisService.calculateAverageOverallScaleScoreByDemographicByYear(studentDataList, "ethnicity"));
+            analysisResults.put("averageOverallScaleScoreByGenderByYear", dataAnalysisService.calculateAverageOverallScaleScoreByDemographicByYear(studentDataList, "gender"));
+            analysisResults.put("averageOverallScaleScoreByGradeLevelByYear", dataAnalysisService.calculateAverageOverallScaleScoreByDemographicByYear(studentDataList, "gradelevel"));
+            analysisResults.put("averageOverallScaleScoreByOverallPerformanceCsvByYear", dataAnalysisService.calculateAverageOverallScaleScoreByDemographicByYear(studentDataList, "overallperformance_csv"));
+            analysisResults.put("averageOverallScaleScoreByRiseElaProficiencyByYear", dataAnalysisService.calculateAverageOverallScaleScoreByDemographicByYear(studentDataList, "riseproficiency_ela")); // Corrected key
+            analysisResults.put("averageOverallScaleScoreByMathProficiencyByYear", dataAnalysisService.calculateAverageOverallScaleScoreByDemographicByYear(studentDataList, "mathproficiency"));
+            analysisResults.put("averageOverallScaleScoreByEllByYear", dataAnalysisService.calculateAverageOverallScaleScoreByDemographicByYear(studentDataList, "ell"));
+            analysisResults.put("averageOverallScaleScoreBySpecialEdByYear", dataAnalysisService.calculateAverageOverallScaleScoreByDemographicByYear(studentDataList, "specialed"));
+
 
             analysisResults.put("totalUnpivotedRecordsProcessed", studentDataList.size());
             analysisResults.put("fileName", file.getOriginalFilename());

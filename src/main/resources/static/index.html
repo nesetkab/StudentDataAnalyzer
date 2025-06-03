@@ -17,9 +17,8 @@
     <section id="upload-section">
         <h2>Upload Student Data CSV</h2>
         <p>
-            Expected CSV columns: Student ID, Student Name, Grade, Special Ed, Scale Score, Performance,
-            Language Performance, Listening Comprehension Performance, Reading Informational Text Performance,
-            Reading Literature Performance, Ethnicity, Gender.
+            The system will attempt to auto-detect ELA and/or Math performance columns.
+            Common columns expected: Student ID, Student Name, Grade, ELL, Special Ed, Scale Score, Performance, Ethnicity, Gender.
         </p>
         <div>
             <label for="csvFile">Select CSV File:</label>
@@ -43,67 +42,113 @@
         <p>Total Unpivoted Records Processed: <span id="totalRecords"></span></p>
 
         <div class="tab-navigation">
-            <button class="tab-button active" data-tab="performanceDistribution">Performance Distribution</button>
-            <button class="tab-button" data-tab="avgScaleScores">Avg. Scale Scores</button>
-            <button class="tab-button" data-tab="passRates">Pass Rates</button>
-            <button class="tab-button" data-tab="specialEdComparison">Sp.Ed Comparison</button>
-            <button class="tab-button" data-tab="demographics">Demographics</button>
+            <button class="tab-button active" data-tab="riseElaProficiency">RISE ELA Proficiency</button>
+            <button class="tab-button" data-tab="mathProficiency">Math Proficiency</button>
+            <button class="tab-button" data-tab="subjectPerformance">Subject Area Performance Levels</button>
+            <button class="tab-button" data-tab="overallYearlyMetrics">Overall Yearly Metrics</button>
+            <button class="tab-button" data-tab="specialEdComparison">Sp.Ed Comparison (Overall Scores)</button>
+            <button class="tab-button" data-tab="demographics">Demographics (Overall Scores)</button>
         </div>
 
-        <div id="tab-performanceDistribution" class="tab-panel active">
+        <!-- Tab 1: RISE ELA Proficiency Distribution -->
+        <div id="tab-riseElaProficiency" class="tab-panel active">
             <div class="chart-container">
-                <h3>Performance Level Distribution by Subject</h3>
-                <p>Shows the count of students at each performance level (e.g., Proficient, Basic) for different subjects.</p>
-                <canvas id="performanceDistributionChart"></canvas>
+                <h3>RISE ELA Proficiency Distribution by Grade</h3>
+                <p>Shows the count of students at each derived RISE ELA proficiency level (based on Scale Score and Grade) for different grades.</p>
+                <canvas id="riseElaProficiencyDistributionChart"></canvas>
             </div>
         </div>
 
-        <div id="tab-avgScaleScores" class="tab-panel">
+        <!-- Tab 2: Math Proficiency Distribution -->
+        <div id="tab-mathProficiency" class="tab-panel">
             <div class="chart-container">
-                <h3>Average Scale Score by Subject</h3>
-                <p>Displays the average overall 'Scale Score' for students, grouped by the subject/assessment area.</p>
-                <canvas id="avgScaleScoreBySubjectChart"></canvas>
+                <h3>Math Proficiency Distribution by Grade</h3>
+                <p>Shows the count of students at each derived Math proficiency level (based on Scale Score and Grade) for different grades.</p>
+                <canvas id="mathProficiencyDistributionChart"></canvas>
             </div>
         </div>
 
-        <div id="tab-passRates" class="tab-panel">
+        <!-- Tab 3: Subject Area Performance Levels (from CSV) -->
+        <div id="tab-subjectPerformance" class="tab-panel">
             <div class="chart-container">
-                <h3>Pass Rate by Subject (Based on Overall Scale Score)</h3>
-                <p>Shows the percentage of students passing (based on their overall 'Scale Score') for each subject/assessment area.</p>
-                <canvas id="passRateBySubjectChart"></canvas>
+                <h3>Distribution of Performance Levels by Subject Area (from CSV)</h3>
+                <p>Shows the count of students at each performance level (e.g., "At/Near Standard" from the CSV) for different ELA/Math subject areas.</p>
+                <canvas id="subjectPerformanceDistributionChart"></canvas>
             </div>
         </div>
 
+        <!-- Tab 4: Overall Yearly Metrics -->
+        <div id="tab-overallYearlyMetrics" class="tab-panel">
+            <div class="chart-container">
+                <h3>Average Overall Scale Score (Per Year)</h3>
+                <p>Displays the average of the 'Scale Score' for all unique students in the selected year.</p>
+                <canvas id="avgOverallScaleScoreByYearChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Overall ELA Pass Rate (Per Year - Based on RISE ELA Proficiency)</h3>
+                <p>Shows the percentage of unique students achieving "Proficient" or "Highly Proficient" on the RISE ELA scale in the selected year.</p>
+                <canvas id="overallElaPassRateByYearChart"></canvas>
+            </div>
+            <!-- Placeholder for Overall Math Pass Rate if implemented and data available -->
+            <div class="chart-container" id="overallMathPassRateContainer" style="display:none;">
+                <h3>Overall Math Pass Rate (Per Year - Based on Math Proficiency)</h3>
+                <p>Shows the percentage of unique students achieving "Proficient" or "Highly Proficient" on the Math scale in the selected year.</p>
+                <canvas id="overallMathPassRateByYearChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Tab 6: Special Ed Comparison (Overall Scores) -->
         <div id="tab-specialEdComparison" class="tab-panel">
             <div class="chart-container">
-                <h3>Average Scale Score: Special Ed vs. Non-Special Ed</h3>
-                <p>Compares the average overall 'Scale Score' for Special Ed vs. Non-Special Ed students, across different subjects.</p>
-                <label for="spEdSubjectFilter">Filter by Subject:</label>
+                <h3>Average Overall Scale Score: Special Ed vs. Non-Special Ed (by Subject Area Group)</h3>
+                <p>Compares the average 'Scale Score' for Special Ed vs. Non-Special Ed students, within groups assessed in each ELA/Math subject area.</p>
+                <label for="spEdSubjectFilter">Filter by Subject Area:</label>
                 <select id="spEdSubjectFilter"></select>
-                <canvas id="avgScaleScoreBySpecialEdChart"></canvas>
+                <canvas id="avgOverallScaleScoreBySpecialEdChart"></canvas>
             </div>
         </div>
 
+        <!-- Tab 7: Demographics (Overall Scores) -->
         <div id="tab-demographics" class="tab-panel">
             <div class="chart-container">
-                <h3>Average Scale Score by Ethnicity</h3>
+                <h3>Average Overall Scale Score by Ethnicity</h3>
                 <canvas id="avgScoreByEthnicityChart"></canvas>
             </div>
             <div class="chart-container">
-                <h3>Average Scale Score by Gender</h3>
+                <h3>Average Overall Scale Score by Gender</h3>
                 <canvas id="avgScoreByGenderChart"></canvas>
             </div>
             <div class="chart-container">
-                <h3>Average Scale Score by Grade Level</h3>
+                <h3>Average Overall Scale Score by Grade Level</h3>
                 <canvas id="avgScoreByGradeLevelChart"></canvas>
             </div>
             <div class="chart-container">
-                <h3>Average Scale Score by Overall Performance Level</h3>
-                <canvas id="avgScoreByOverallPerformanceChart"></canvas>
+                <h3>Average Overall Scale Score by Overall Performance Level (from CSV)</h3>
+                <canvas id="avgScoreByOverallPerformanceCsvChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Average Overall Scale Score by Derived RISE ELA Proficiency</h3>
+                <canvas id="avgScoreByRiseElaProficiencyChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Average Overall Scale Score by Derived Math Proficiency</h3>
+                <canvas id="avgScoreByMathProficiencyChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Average Overall Scale Score by ELL Status</h3>
+                <canvas id="avgScoreByEllChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Average Overall Scale Score by Special Ed Status</h3>
+                <canvas id="avgScoreBySpecialEdDemographicChart"></canvas>
             </div>
         </div>
     </section>
 </main>
+
+<footer>
+    <p>&copy; 2024-2025 Student Data Analyzer</p>
+</footer>
 
 <script src="app.js"></script>
 </body>

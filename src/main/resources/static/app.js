@@ -18,9 +18,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let analysisDataStore = null;
     let currentDatasetYear = null;
     let chartInstances = {};
-    let renderedTabs = new Set(); // Keep track of tabs whose charts have been rendered
+    let renderedTabs = new Set();
 
     const API_BASE_URL = '/api/data';
+
+    // Define standard proficiency levels for consistent ordering and coloring
+    const ELA_PROFICIENCY_LEVELS_ORDERED = ["Below Proficient", "Approaching Proficient", "Proficient", "Highly Proficient", "N/A (Grade not in ELA 3-8)", "N/A (Score out of ELA range)"];
+    const MATH_PROFICIENCY_LEVELS_ORDERED = ["Below Proficient", "Approaching Proficient", "Proficient", "Highly Proficient", "N/A (Math Grade not in 3-8)", "N/A (Score out of Math range)"];
+
 
     uploadButton.addEventListener('click', async () => {
         const file = csvFileInput.files[0];
@@ -31,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
         successMessageDiv.textContent = '';
         successMessageDiv.style.display = 'none';
         resultsSection.style.display = 'none';
-        renderedTabs.clear(); // Clear rendered tabs on new upload
+        renderedTabs.clear();
 
         if (!file) {
             displayError("Please select a CSV file.");
@@ -86,6 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
         errorMessageDiv.style.display = 'block';
         successMessageDiv.style.display = 'none';
     }
+
     function displaySuccess(message) {
         successMessageDiv.textContent = message;
         successMessageDiv.style.display = 'block';
@@ -105,11 +111,9 @@ document.addEventListener('DOMContentLoaded', () => {
         resultsFileNameSpan.textContent = data.fileName || 'N/A';
         totalRecordsSpan.textContent = data.totalUnpivotedRecordsProcessed || '0';
 
-        // Destroy all existing charts before setting up new tabs
         Object.keys(chartInstances).forEach(destroyChart);
         renderedTabs.clear();
 
-        // Activate the first tab by default
         const firstTabButton = tabButtonsContainer.querySelector('.tab-button');
         if (firstTabButton) {
             activateTab(firstTabButton.dataset.tab);
@@ -131,7 +135,6 @@ document.addEventListener('DOMContentLoaded', () => {
             panel.classList.toggle('active', panel.id === `tab-${tabId}`);
         });
 
-        // Render charts for the activated tab if not already rendered
         if (!renderedTabs.has(tabId) && analysisDataStore) {
             renderChartsForTab(tabId, analysisDataStore);
             renderedTabs.add(tabId);
@@ -139,8 +142,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderChartsForTab(tabId, data) {
-        // Destroy existing charts in this tab before rendering (important if data updates)
-        // This logic might need refinement if tabs can be re-rendered with new data without full upload
         const panel = document.getElementById(`tab-${tabId}`);
         if (panel) {
             panel.querySelectorAll('canvas').forEach(canvas => {
@@ -149,72 +150,97 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         switch (tabId) {
-            case 'performanceDistribution':
-                renderPerformanceDistributionChart(data.performanceLevelDistributionBySubjectByYear);
+            case 'riseElaProficiency':
+                renderRiseElaProficiencyDistributionChart(data.riseElaProficiencyDistributionByGradeByYear);
                 break;
-            case 'avgScaleScores':
-                renderAverageScaleScoreBySubjectChart(data.averageScaleScoreBySubjectByYear);
+            case 'mathProficiency':
+                renderMathProficiencyDistributionChart(data.mathProficiencyDistributionByGradeByYear);
                 break;
-            case 'passRates':
-                renderPassRateBySubjectChart(data.passRatesBySubjectByYear);
+            case 'subjectPerformance':
+                renderSubjectPerformanceDistributionChart(data.subjectPerformanceLevelDistributionByYear);
+                break;
+            case 'overallYearlyMetrics':
+                renderAverageOverallScaleScoreByYearChart(data.averageOverallScaleScoreByYear);
+                renderOverallElaPassRateByYearChart(data.overallElaPassRateByYear);
+                // renderOverallMathPassRateByYearChart(data.overallMathPassRateByYear); // If you add this to backend
+                break;
+            case 'subjectGroupScaleScores':
+                renderAverageOverallScaleScoreOfStudentsInSubjectGroupsChart(data.averageOverallScaleScoreOfStudentsInSubjectAreaGroupsByYear);
+                // The pass rate by subject group was removed from backend response, so commenting out:
+                // renderPassRateOfStudentsInSubjectGroupsChart(data.passRatesOfStudentsInSubjectGroupsByYear);
                 break;
             case 'specialEdComparison':
-                populateSpecialEdSubjectFilter(data.averageScaleScoreBySpecialEdAndSubjectByYear);
+                populateSpecialEdSubjectFilter(data.averageOverallScaleScoreBySpecialEdAndSubjectAreaByYear);
                 if (spEdSubjectFilter.options.length > 0) {
-                    renderAvgScaleScoreBySpecialEdChart(data.averageScaleScoreBySpecialEdAndSubjectByYear, spEdSubjectFilter.value);
+                    renderAvgOverallScaleScoreBySpecialEdChart(data.averageOverallScaleScoreBySpecialEdAndSubjectAreaByYear, spEdSubjectFilter.value);
                 } else {
-                    destroyChart('avgScaleScoreBySpecialEdChart'); // Ensure canvas is cleared if no filter options
-                    const ctx = document.getElementById('avgScaleScoreBySpecialEdChart')?.getContext('2d');
+                    destroyChart('avgOverallScaleScoreBySpecialEdChart');
+                    const ctx = document.getElementById('avgOverallScaleScoreBySpecialEdChart')?.getContext('2d');
                     if(ctx) ctx.fillText(`No data for Special Ed comparison for year ${currentDatasetYear}.`, 10, 50);
                 }
                 break;
             case 'demographics':
-                renderDemographicChart(data.averageScaleScoreByEthnicityByYear, 'avgScoreByEthnicityChart', 'Average Scale Score by Ethnicity');
-                renderDemographicChart(data.averageScaleScoreByGenderByYear, 'avgScoreByGenderChart', 'Average Scale Score by Gender');
-                renderDemographicChart(data.averageScaleScoreByGradeLevelByYear, 'avgScoreByGradeLevelChart', 'Average Scale Score by Grade Level');
-                renderDemographicChart(data.averageScaleScoreByOverallPerformanceByYear, 'avgScoreByOverallPerformanceChart', 'Average Scale Score by Overall Performance');
+                renderDemographicChart(data.averageOverallScaleScoreByEthnicityByYear, 'avgScoreByEthnicityChart', 'Avg. Overall Scale Score by Ethnicity');
+                renderDemographicChart(data.averageOverallScaleScoreByGenderByYear, 'avgScoreByGenderChart', 'Avg. Overall Scale Score by Gender');
+                renderDemographicChart(data.averageOverallScaleScoreByGradeLevelByYear, 'avgScoreByGradeLevelChart', 'Avg. Overall Scale Score by Grade Level');
+                renderDemographicChart(data.averageOverallScaleScoreByOverallPerformanceCsvByYear, 'avgScoreByOverallPerformanceCsvChart', 'Avg. Overall Scale Score by CSV Performance Lvl');
+                renderDemographicChart(data.averageOverallScaleScoreByRiseElaProficiencyByYear, 'avgScoreByRiseElaProficiencyChart', 'Avg. Overall Scale Score by RISE ELA Proficiency');
+                renderDemographicChart(data.averageOverallScaleScoreByMathProficiencyByYear, 'avgScoreByMathProficiencyChart', 'Avg. Overall Scale Score by Math Proficiency');
+                renderDemographicChart(data.averageOverallScaleScoreByEllByYear, 'avgScoreByEllChart', 'Avg. Overall Scale Score by ELL Status');
+                renderDemographicChart(data.averageOverallScaleScoreBySpecialEdByYear, 'avgScoreBySpecialEdDemographicChart', 'Avg. Overall Scale Score by Sp.Ed Status');
                 break;
         }
     }
 
     spEdSubjectFilter.addEventListener('change', () => {
-        if (analysisDataStore && spEdSubjectFilter.value && renderedTabs.has('specialEdComparison')) { // Re-render only if tab is active
-            renderAvgScaleScoreBySpecialEdChart(analysisDataStore.averageScaleScoreBySpecialEdAndSubjectByYear, spEdSubjectFilter.value);
+        if (analysisDataStore && spEdSubjectFilter.value && renderedTabs.has('specialEdComparison')) {
+            renderAvgOverallScaleScoreBySpecialEdChart(analysisDataStore.averageOverallScaleScoreBySpecialEdAndSubjectAreaByYear, spEdSubjectFilter.value);
         }
     });
 
-    // --- Chart Rendering Functions (Mostly unchanged, but now called selectively) ---
-
     function getChartColors(count) {
         const colors = [];
+        // Predefined color palette for consistency, can be expanded
+        const palette = [
+            'rgba(54, 162, 235, 0.7)', 'rgba(255, 99, 132, 0.7)', 'rgba(75, 192, 192, 0.7)',
+            'rgba(255, 206, 86, 0.7)', 'rgba(153, 102, 255, 0.7)', 'rgba(255, 159, 64, 0.7)',
+            'rgba(99, 255, 132, 0.7)', 'rgba(132, 99, 255, 0.7)'
+        ];
         for (let i = 0; i < count; i++) {
-            colors.push(randomColor({ luminosity: 'bright', format: 'rgba', alpha: 0.7 }));
+            if (i < palette.length) {
+                colors.push(palette[i]);
+            } else if (typeof randomColor === 'function') { // Fallback to randomColor if more colors are needed
+                colors.push(randomColor({ luminosity: 'bright', format: 'rgba', alpha: 0.7 }));
+            } else {
+                const r = Math.floor(Math.random() * 200);
+                const g = Math.floor(Math.random() * 200);
+                const b = Math.floor(Math.random() * 200);
+                colors.push(`rgba(${r},${g},${b},0.7)`);
+            }
         }
         return colors;
     }
 
-    function renderPerformanceDistributionChart(dataByYear) {
-        const chartId = 'performanceDistributionChart';
-        destroyChart(chartId); // Ensure previous instance is destroyed
+    function renderRiseElaProficiencyDistributionChart(dataByYear) {
+        const chartId = 'riseElaProficiencyDistributionChart';
+        destroyChart(chartId);
         const ctx = document.getElementById(chartId)?.getContext('2d');
         if(!ctx) return;
 
-
         if (!dataByYear || !dataByYear[currentDatasetYear] || Object.keys(dataByYear[currentDatasetYear]).length === 0) {
             ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-            ctx.fillText(`No performance distribution data for year ${currentDatasetYear}.`, 10, 50);
+            ctx.fillText(`No RISE ELA proficiency distribution data for year ${currentDatasetYear}.`, 10, 50);
             return;
         }
 
         const yearData = dataByYear[currentDatasetYear];
-        const subjects = Object.keys(yearData);
-        const performanceLevels = [...new Set(subjects.flatMap(subject => Object.keys(yearData[subject])))].sort();
+        const grades = Object.keys(yearData).sort((a,b) => parseInt(a) - parseInt(b));
 
-        const datasets = performanceLevels.map((level, index) => {
-            const color = getChartColors(performanceLevels.length)[index];
+        const datasets = ELA_PROFICIENCY_LEVELS_ORDERED.map((level, index) => {
+            const color = getChartColors(ELA_PROFICIENCY_LEVELS_ORDERED.length)[index];
             return {
                 label: level,
-                data: subjects.map(subject => yearData[subject][level] || 0),
+                data: grades.map(grade => yearData[grade]?.[level] || 0),
                 backgroundColor: color,
                 borderColor: color.replace('0.7', '1'),
                 borderWidth: 1
@@ -223,27 +249,142 @@ document.addEventListener('DOMContentLoaded', () => {
 
         chartInstances[chartId] = new Chart(ctx, {
             type: 'bar',
-            data: { labels: subjects, datasets: datasets },
+            data: { labels: grades, datasets: datasets },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 scales: {
                     y: { beginAtZero: true, title: { display: true, text: 'Number of Students' } },
-                    x: { title: { display: true, text: 'Subject / Assessment Area' } }
+                    x: { title: { display: true, text: 'Grade Level' } }
                 },
-                plugins: { legend: { position: 'top' }, title: { display: true, text: `Performance Level Distribution (${currentDatasetYear})` } }
+                plugins: { legend: { position: 'top' }, title: { display: true, text: `RISE ELA Proficiency Distribution by Grade (${currentDatasetYear})` } }
             }
         });
     }
 
-    function renderAverageScaleScoreBySubjectChart(dataByYear) {
-        const chartId = 'avgScaleScoreBySubjectChart';
+    function renderMathProficiencyDistributionChart(dataByYear) {
+        const chartId = 'mathProficiencyDistributionChart';
         destroyChart(chartId);
         const ctx = document.getElementById(chartId)?.getContext('2d');
         if(!ctx) return;
 
         if (!dataByYear || !dataByYear[currentDatasetYear] || Object.keys(dataByYear[currentDatasetYear]).length === 0) {
             ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-            ctx.fillText(`No average scale score data by subject for year ${currentDatasetYear}.`, 10, 50);
+            ctx.fillText(`No Math proficiency distribution data for year ${currentDatasetYear}.`, 10, 50);
+            return;
+        }
+
+        const yearData = dataByYear[currentDatasetYear];
+        const grades = Object.keys(yearData).sort((a,b) => parseInt(a) - parseInt(b));
+
+        const datasets = MATH_PROFICIENCY_LEVELS_ORDERED.map((level, index) => {
+            const color = getChartColors(MATH_PROFICIENCY_LEVELS_ORDERED.length)[index];
+            return {
+                label: level,
+                data: grades.map(grade => yearData[grade]?.[level] || 0),
+                backgroundColor: color,
+                borderColor: color.replace('0.7', '1'),
+                borderWidth: 1
+            };
+        });
+
+        chartInstances[chartId] = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: grades, datasets: datasets },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, title: { display: true, text: 'Number of Students' } },
+                    x: { title: { display: true, text: 'Grade Level' } }
+                },
+                plugins: { legend: { position: 'top' }, title: { display: true, text: `Math Proficiency Distribution by Grade (${currentDatasetYear})` } }
+            }
+        });
+    }
+
+    function renderSubjectPerformanceDistributionChart(dataByYear) {
+        const chartId = 'subjectPerformanceDistributionChart';
+        destroyChart(chartId);
+        const ctx = document.getElementById(chartId)?.getContext('2d');
+        if(!ctx) return;
+
+        if (!dataByYear || !dataByYear[currentDatasetYear] || Object.keys(dataByYear[currentDatasetYear]).length === 0) {
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            ctx.fillText(`No subject area performance distribution data for year ${currentDatasetYear}.`, 10, 50);
+            return;
+        }
+
+        const yearData = dataByYear[currentDatasetYear];
+        const subjectAreas = Object.keys(yearData);
+        const allPerformanceLevels = [...new Set(subjectAreas.flatMap(sa => yearData[sa] ? Object.keys(yearData[sa]) : []))].sort();
+
+        const datasets = allPerformanceLevels.map((level, index) => {
+            const color = getChartColors(allPerformanceLevels.length)[index];
+            return {
+                label: level,
+                data: subjectAreas.map(sa => yearData[sa]?.[level] || 0),
+                backgroundColor: color,
+                borderColor: color.replace('0.7', '1'),
+                borderWidth: 1
+            };
+        });
+
+        chartInstances[chartId] = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: subjectAreas, datasets: datasets },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, title: { display: true, text: 'Number of Students' } },
+                    x: { title: { display: true, text: 'Subject Area (from CSV columns)' } }
+                },
+                plugins: { legend: { position: 'top' }, title: { display: true, text: `Distribution of Performance Levels by Subject Area (${currentDatasetYear})` } }
+            }
+        });
+    }
+
+
+
+    function renderOverallElaPassRateByYearChart(dataByYear) {
+        const chartId = 'overallElaPassRateByYearChart';
+        destroyChart(chartId);
+        const ctx = document.getElementById(chartId)?.getContext('2d');
+        if(!ctx) return;
+
+        if (!dataByYear || dataByYear[currentDatasetYear] === undefined || dataByYear[currentDatasetYear] === null) {
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            ctx.fillText(`No overall ELA pass rate data for year ${currentDatasetYear}.`, 10, 50);
+            return;
+        }
+        const passRate = dataByYear[currentDatasetYear];
+        const notPassingRate = Math.max(0, 100 - passRate);
+
+        chartInstances[chartId] = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Passing (RISE ELA Proficient/Highly Proficient) (%)', 'Not Passing (%)'],
+                datasets: [{
+                    label: 'Overall ELA Pass Rate (RISE)',
+                    data: [passRate, notPassingRate],
+                    backgroundColor: [getChartColors(2)[0], getChartColors(2)[1]],
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'top' }, title: { display: true, text: `Overall ELA Pass Rate (Based on RISE ELA Proficiency - ${currentDatasetYear})` } }
+            }
+        });
+    }
+
+    function renderAverageOverallScaleScoreOfStudentsInSubjectGroupsChart(dataByYear) {
+        const chartId = 'avgOverallScaleScoreOfStudentsInSubjectGroupsChart';
+        destroyChart(chartId);
+        const ctx = document.getElementById(chartId)?.getContext('2d');
+        if(!ctx) return;
+
+        if (!dataByYear || !dataByYear[currentDatasetYear] || Object.keys(dataByYear[currentDatasetYear]).length === 0) {
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            ctx.fillText(`No average overall scale score data by subject area group for year ${currentDatasetYear}.`, 10, 50);
             return;
         }
         const yearData = dataByYear[currentDatasetYear];
@@ -256,47 +397,14 @@ document.addEventListener('DOMContentLoaded', () => {
             data: {
                 labels: subjects,
                 datasets: [{
-                    label: `Average Scale Score (${currentDatasetYear})`, data: scores,
+                    label: `Avg. Overall Scale Score (${currentDatasetYear})`, data: scores,
                     backgroundColor: colors, borderColor: colors.map(c => c.replace('0.7', '1')), borderWidth: 1
                 }]
             },
             options: {
                 responsive: true, maintainAspectRatio: false, indexAxis: 'y',
-                scales: { x: { beginAtZero: false, title: { display: true, text: 'Average Scale Score' } } },
-                plugins: { legend: { display: false }, title: { display: true, text: `Average Scale Score by Subject (${currentDatasetYear})` } }
-            }
-        });
-    }
-
-    function renderPassRateBySubjectChart(dataByYear) {
-        const chartId = 'passRateBySubjectChart';
-        destroyChart(chartId);
-        const ctx = document.getElementById(chartId)?.getContext('2d');
-        if(!ctx) return;
-
-        if (!dataByYear || !dataByYear[currentDatasetYear] || Object.keys(dataByYear[currentDatasetYear]).length === 0) {
-            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-            ctx.fillText(`No pass rate data by subject for year ${currentDatasetYear}.`, 10, 50);
-            return;
-        }
-        const yearData = dataByYear[currentDatasetYear];
-        const subjects = Object.keys(yearData);
-        const rates = subjects.map(subject => yearData[subject]);
-        const colors = getChartColors(subjects.length);
-
-        chartInstances[chartId] = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: subjects,
-                datasets: [{
-                    label: `Pass Rate (%) (${currentDatasetYear})`, data: rates,
-                    backgroundColor: colors, borderColor: colors.map(c => c.replace('0.7', '1')), borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                scales: { y: { beginAtZero: true, max: 100, title: { display: true, text: 'Pass Rate (%)' } } },
-                plugins: { legend: { display: false }, title: { display: true, text: `Pass Rate by Subject (${currentDatasetYear})` } }
+                scales: { x: { beginAtZero: false, title: { display: true, text: 'Average Overall Scale Score' } } },
+                plugins: { legend: { display: false }, title: { display: true, text: `Average Overall Scale Score of Students in Subject Area Groups (${currentDatasetYear})` } }
             }
         });
     }
@@ -306,9 +414,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!dataBySpEd || Object.keys(dataBySpEd).length === 0 || !currentDatasetYear) return;
 
         const subjectsForYear = new Set();
-        [true, false].forEach(isSpEd => {
-            if (dataBySpEd[isSpEd] && dataBySpEd[isSpEd][currentDatasetYear]) {
-                Object.keys(dataBySpEd[isSpEd][currentDatasetYear]).forEach(subject => subjectsForYear.add(subject));
+        ['true', 'false'].forEach(isSpEdKey => {
+            if (dataBySpEd[isSpEdKey] && dataBySpEd[isSpEdKey][currentDatasetYear]) {
+                Object.keys(dataBySpEd[isSpEdKey][currentDatasetYear]).forEach(subject => subjectsForYear.add(subject));
             }
         });
 
@@ -321,22 +429,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function renderAvgScaleScoreBySpecialEdChart(dataBySpEd, selectedSubject) {
-        const chartId = 'avgScaleScoreBySpecialEdChart';
+    function renderAvgOverallScaleScoreBySpecialEdChart(dataBySpEd, selectedSubject) {
+        const chartId = 'avgOverallScaleScoreBySpecialEdChart';
         destroyChart(chartId);
         const ctx = document.getElementById(chartId)?.getContext('2d');
         if(!ctx) return;
 
         if (!dataBySpEd || !currentDatasetYear || !selectedSubject) {
             ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-            ctx.fillText('Select a subject to view Special Ed comparison.', 10, 50);
+            ctx.fillText('Select a subject area to view Special Ed comparison.', 10, 50);
             return;
         }
 
-        const avgScoreNonSpecialEd = dataBySpEd[false]?.[currentDatasetYear]?.[selectedSubject] || 0;
-        const avgScoreSpecialEd = dataBySpEd[true]?.[currentDatasetYear]?.[selectedSubject] || 0;
+        const avgScoreNonSpecialEd = dataBySpEd['false']?.[currentDatasetYear]?.[selectedSubject] || 0;
+        const avgScoreSpecialEd = dataBySpEd['true']?.[currentDatasetYear]?.[selectedSubject] || 0;
 
-        if (avgScoreNonSpecialEd === 0 && avgScoreSpecialEd === 0 && !(dataBySpEd[false]?.[currentDatasetYear]?.[selectedSubject] || dataBySpEd[true]?.[currentDatasetYear]?.[selectedSubject])) {
+        if (avgScoreNonSpecialEd === 0 && avgScoreSpecialEd === 0 &&
+            !(dataBySpEd['false']?.[currentDatasetYear]?.[selectedSubject] || dataBySpEd['true']?.[currentDatasetYear]?.[selectedSubject])) {
             ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
             ctx.fillText(`No data for ${selectedSubject} in ${currentDatasetYear} to compare Special Ed status.`, 10, 50);
             return;
@@ -347,15 +456,15 @@ document.addEventListener('DOMContentLoaded', () => {
             data: {
                 labels: ['Non-Special Ed', 'Special Ed'],
                 datasets: [{
-                    label: `Avg Scale Score - ${selectedSubject} (${currentDatasetYear})`,
+                    label: `Avg. Overall Scale Score - ${selectedSubject} (${currentDatasetYear})`,
                     data: [avgScoreNonSpecialEd, avgScoreSpecialEd],
                     backgroundColor: [getChartColors(2)[0], getChartColors(2)[1]], borderWidth: 1
                 }]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                scales: { y: { beginAtZero: false, title: { display: true, text: 'Average Scale Score' } } },
-                plugins: { legend: { display: false }, title: { display: true, text: `Avg Scale Score by Special Ed Status for ${selectedSubject} (${currentDatasetYear})` } }
+                scales: { y: { beginAtZero: false, title: { display: true, text: 'Average Overall Scale Score' } } },
+                plugins: { legend: { display: false }, title: { display: true, text: `Avg. Overall Scale Score by Sp.Ed Status for ${selectedSubject} (${currentDatasetYear})` } }
             }
         });
     }
@@ -380,11 +489,29 @@ document.addEventListener('DOMContentLoaded', () => {
             type: 'pie',
             data: {
                 labels: categories,
-                datasets: [{ label: `Average Scale Score`, data: scores, backgroundColor: colors, hoverOffset: 4 }]
+                datasets: [{ label: `Average Overall Scale Score`, data: scores, backgroundColor: colors, hoverOffset: 4 }]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { position: 'top' }, title: { display: true, text: `${chartTitlePrefix} (${currentDatasetYear})` } }
+                plugins: {
+                    legend: { position: 'top' },
+                    title: { display: true, text: `${chartTitlePrefix} (${currentDatasetYear})` },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed !== null) {
+                                    let value = typeof context.parsed === 'object' ? context.parsed.y : context.parsed;
+                                    label += value.toFixed(2);
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                }
             }
         });
     }
