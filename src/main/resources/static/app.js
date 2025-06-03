@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     uploadButton.addEventListener('click', async () => {
+        console.log("Upload button clicked."); // Log 0: Button click
         const file = csvFileInput.files[0];
         const year = yearInput.value;
 
@@ -55,35 +56,68 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append('year', year);
 
         try {
+            console.log("Attempting to fetch from API:", `${API_BASE_URL}/upload`); // Log 1
             const response = await fetch(`${API_BASE_URL}/upload`, {
                 method: 'POST',
                 body: formData
             });
+            console.log("Fetch response received. Status:", response.status, "Ok:", response.ok, "StatusText:", response.statusText); // Log 2
+            // Log response headers, especially Content-Type
+            console.log("Response Headers:");
+            response.headers.forEach((value, name) => {
+                console.log(`  ${name}: ${value}`);
+            });
+
 
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ error: `HTTP error! Status: ${response.status}. No error details provided.` }));
-                throw new Error(errorData.error || `HTTP error! Status: ${response.status}`);
+                console.error("Response not OK. Attempting to parse error JSON or text..."); // Log 3
+                let errorText = `HTTP error! Status: ${response.status} ${response.statusText}.`;
+                try {
+                    const errorData = await response.json();
+                    console.error("Error data from response (parsed as JSON):", errorData); // Log 5a
+                    errorText = errorData.error || errorText;
+                } catch (jsonError) {
+                    console.error("Failed to parse error response as JSON:", jsonError); // Log 4
+                    try {
+                        const text = await response.text();
+                        console.error("Error response as text:", text.substring(0, 500)); // Log 5b
+                        errorText += ` Response body (text): ${text.substring(0,200)}...`;
+                    } catch (textError) {
+                        console.error("Failed to get error response as text:", textError); // Log 5c
+                    }
+                }
+                throw new Error(errorText);
             }
 
-            const data = await response.json();
+            console.log("Response OK. Attempting to parse success JSON..."); // Log 6
+            const data = await response.json(); // This line might fail if response is not JSON
+            console.log("Successfully parsed JSON response:", data); // Log 7
+
             analysisDataStore = data;
             currentDatasetYear = data.datasetYear;
-            console.log("Received data from backend:", analysisDataStore);
+
+            console.log("Received data from backend (analysisDataStore):", analysisDataStore);
+            console.log("Current dataset year set to:", currentDatasetYear); // Log 8
+
 
             if (data.message && !data.totalUnpivotedRecordsProcessed) {
+                console.log("Displaying 'message' from backend:", data.message); // Log 9
                 displaySuccess(data.message);
             } else if (data.totalUnpivotedRecordsProcessed > 0) {
+                console.log("Processing successful data. Total records:", data.totalUnpivotedRecordsProcessed); // Log 10
                 displaySuccess(`Successfully processed ${data.fileName} for year ${data.datasetYear}.`);
                 setupTabsAndDisplayResults(data);
             } else {
+                console.warn("No data processed, but no specific message. File might be empty or format issue."); // Log 11
                 displayError("No data processed. The file might be empty or not in the expected format after the header.");
             }
-        } catch (error) {
-            console.error('Upload error:', error);
+        } catch (error) { // This catches errors from fetch, response.ok check, or response.json()
+            console.error('Upload error (outer catch):', error.message, error.stack); // Log 12
             displayError(`Failed to process file: ${error.message}`);
         } finally {
             loadingMessage.style.display = 'none';
             uploadButton.disabled = false;
+            console.log("Upload process finished (finally block)."); // Log 13
         }
     });
 
@@ -151,8 +185,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         console.log(`Rendering charts for tab: ${tabId}`);
-        // Removed console logs for specific data points as they were for debugging the previous issue.
-        // The main console.log("Received data from backend:", analysisDataStore); remains for overall data inspection.
 
         switch (tabId) {
             case 'riseElaProficiency':
@@ -398,9 +430,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // This function is no longer called as its tab was removed.
-    // function renderAverageOverallScaleScoreOfStudentsInSubjectGroupsChart(dataByYear) { ... }
-
     function populateSpecialEdSubjectFilter(dataBySpEd) {
         spEdSubjectFilter.innerHTML = '';
         if (!dataBySpEd || Object.keys(dataBySpEd).length === 0 || !currentDatasetYear) return;
@@ -460,8 +489,5 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
-    // This function is no longer called as its tab was removed.
-    // function renderDemographicChart(dataByYear, chartElementId, chartTitlePrefix) { ... }
 
 });
