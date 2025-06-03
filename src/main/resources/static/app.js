@@ -68,6 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
             analysisDataStore = data;
             currentDatasetYear = data.datasetYear;
+            console.log("Received data from backend:", analysisDataStore);
 
             if (data.message && !data.totalUnpivotedRecordsProcessed) {
                 displaySuccess(data.message);
@@ -149,6 +150,10 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
+        console.log(`Rendering charts for tab: ${tabId}`);
+        // Removed console logs for specific data points as they were for debugging the previous issue.
+        // The main console.log("Received data from backend:", analysisDataStore); remains for overall data inspection.
+
         switch (tabId) {
             case 'riseElaProficiency':
                 renderRiseElaProficiencyDistributionChart(data.riseElaProficiencyDistributionByGradeByYear);
@@ -162,13 +167,8 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'overallYearlyMetrics':
                 renderAverageOverallScaleScoreByYearChart(data.averageOverallScaleScoreByYear);
                 renderOverallElaPassRateByYearChart(data.overallElaPassRateByYear);
-                // renderOverallMathPassRateByYearChart(data.overallMathPassRateByYear); // If you add this to backend
                 break;
-            case 'subjectGroupScaleScores':
-                renderAverageOverallScaleScoreOfStudentsInSubjectGroupsChart(data.averageOverallScaleScoreOfStudentsInSubjectAreaGroupsByYear);
-                // The pass rate by subject group was removed from backend response, so commenting out:
-                // renderPassRateOfStudentsInSubjectGroupsChart(data.passRatesOfStudentsInSubjectGroupsByYear);
-                break;
+            // 'subjectGroupScaleScores' tab and its charts are removed
             case 'specialEdComparison':
                 populateSpecialEdSubjectFilter(data.averageOverallScaleScoreBySpecialEdAndSubjectAreaByYear);
                 if (spEdSubjectFilter.options.length > 0) {
@@ -179,16 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if(ctx) ctx.fillText(`No data for Special Ed comparison for year ${currentDatasetYear}.`, 10, 50);
                 }
                 break;
-            case 'demographics':
-                renderDemographicChart(data.averageOverallScaleScoreByEthnicityByYear, 'avgScoreByEthnicityChart', 'Avg. Overall Scale Score by Ethnicity');
-                renderDemographicChart(data.averageOverallScaleScoreByGenderByYear, 'avgScoreByGenderChart', 'Avg. Overall Scale Score by Gender');
-                renderDemographicChart(data.averageOverallScaleScoreByGradeLevelByYear, 'avgScoreByGradeLevelChart', 'Avg. Overall Scale Score by Grade Level');
-                renderDemographicChart(data.averageOverallScaleScoreByOverallPerformanceCsvByYear, 'avgScoreByOverallPerformanceCsvChart', 'Avg. Overall Scale Score by CSV Performance Lvl');
-                renderDemographicChart(data.averageOverallScaleScoreByRiseElaProficiencyByYear, 'avgScoreByRiseElaProficiencyChart', 'Avg. Overall Scale Score by RISE ELA Proficiency');
-                renderDemographicChart(data.averageOverallScaleScoreByMathProficiencyByYear, 'avgScoreByMathProficiencyChart', 'Avg. Overall Scale Score by Math Proficiency');
-                renderDemographicChart(data.averageOverallScaleScoreByEllByYear, 'avgScoreByEllChart', 'Avg. Overall Scale Score by ELL Status');
-                renderDemographicChart(data.averageOverallScaleScoreBySpecialEdByYear, 'avgScoreBySpecialEdDemographicChart', 'Avg. Overall Scale Score by Sp.Ed Status');
-                break;
+            // 'demographics' tab and its charts are removed
         }
     }
 
@@ -200,7 +191,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getChartColors(count) {
         const colors = [];
-        // Predefined color palette for consistency, can be expanded
         const palette = [
             'rgba(54, 162, 235, 0.7)', 'rgba(255, 99, 132, 0.7)', 'rgba(75, 192, 192, 0.7)',
             'rgba(255, 206, 86, 0.7)', 'rgba(153, 102, 255, 0.7)', 'rgba(255, 159, 64, 0.7)',
@@ -209,7 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let i = 0; i < count; i++) {
             if (i < palette.length) {
                 colors.push(palette[i]);
-            } else if (typeof randomColor === 'function') { // Fallback to randomColor if more colors are needed
+            } else if (typeof randomColor === 'function') {
                 colors.push(randomColor({ luminosity: 'bright', format: 'rgba', alpha: 0.7 }));
             } else {
                 const r = Math.floor(Math.random() * 200);
@@ -342,7 +332,39 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function renderAverageOverallScaleScoreByYearChart(dataByYear) {
+        const chartId = 'avgOverallScaleScoreByYearChart';
+        destroyChart(chartId);
+        const ctx = document.getElementById(chartId)?.getContext('2d');
+        if(!ctx) return;
 
+        if (!dataByYear || dataByYear[currentDatasetYear] === undefined || dataByYear[currentDatasetYear] === null) {
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            ctx.fillText(`No overall average scale score data for year ${currentDatasetYear}.`, 10, 50);
+            return;
+        }
+        const avgScore = dataByYear[currentDatasetYear];
+
+        chartInstances[chartId] = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: [`Year ${currentDatasetYear}`],
+                datasets: [{
+                    label: 'Average Overall Scale Score',
+                    data: [avgScore],
+                    backgroundColor: [getChartColors(1)[0]],
+                    borderColor: [getChartColors(1)[0].replace('0.7','1')],
+                    borderWidth: 1,
+                    barPercentage: 0.4
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: { y: { beginAtZero: false, title: { display: true, text: 'Average Scale Score' } } },
+                plugins: { legend: { display: false }, title: { display: true, text: `Average Overall Scale Score (${currentDatasetYear})` } }
+            }
+        });
+    }
 
     function renderOverallElaPassRateByYearChart(dataByYear) {
         const chartId = 'overallElaPassRateByYearChart';
@@ -376,38 +398,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function renderAverageOverallScaleScoreOfStudentsInSubjectGroupsChart(dataByYear) {
-        const chartId = 'avgOverallScaleScoreOfStudentsInSubjectGroupsChart';
-        destroyChart(chartId);
-        const ctx = document.getElementById(chartId)?.getContext('2d');
-        if(!ctx) return;
-
-        if (!dataByYear || !dataByYear[currentDatasetYear] || Object.keys(dataByYear[currentDatasetYear]).length === 0) {
-            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-            ctx.fillText(`No average overall scale score data by subject area group for year ${currentDatasetYear}.`, 10, 50);
-            return;
-        }
-        const yearData = dataByYear[currentDatasetYear];
-        const subjects = Object.keys(yearData);
-        const scores = subjects.map(subject => yearData[subject]);
-        const colors = getChartColors(subjects.length);
-
-        chartInstances[chartId] = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: subjects,
-                datasets: [{
-                    label: `Avg. Overall Scale Score (${currentDatasetYear})`, data: scores,
-                    backgroundColor: colors, borderColor: colors.map(c => c.replace('0.7', '1')), borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false, indexAxis: 'y',
-                scales: { x: { beginAtZero: false, title: { display: true, text: 'Average Overall Scale Score' } } },
-                plugins: { legend: { display: false }, title: { display: true, text: `Average Overall Scale Score of Students in Subject Area Groups (${currentDatasetYear})` } }
-            }
-        });
-    }
+    // This function is no longer called as its tab was removed.
+    // function renderAverageOverallScaleScoreOfStudentsInSubjectGroupsChart(dataByYear) { ... }
 
     function populateSpecialEdSubjectFilter(dataBySpEd) {
         spEdSubjectFilter.innerHTML = '';
@@ -469,50 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function renderDemographicChart(dataByYear, chartElementId, chartTitlePrefix) {
-        destroyChart(chartElementId);
-        const ctx = document.getElementById(chartElementId)?.getContext('2d');
-        if(!ctx) return;
+    // This function is no longer called as its tab was removed.
+    // function renderDemographicChart(dataByYear, chartElementId, chartTitlePrefix) { ... }
 
-        if (!dataByYear || !dataByYear[currentDatasetYear] || Object.keys(dataByYear[currentDatasetYear]).length === 0) {
-            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-            ctx.fillText(`No data for ${chartTitlePrefix} for year ${currentDatasetYear}.`, 10, 50);
-            return;
-        }
-
-        const yearData = dataByYear[currentDatasetYear];
-        const categories = Object.keys(yearData);
-        const scores = categories.map(cat => yearData[cat]);
-        const colors = getChartColors(categories.length);
-
-        chartInstances[chartElementId] = new Chart(ctx, {
-            type: 'pie',
-            data: {
-                labels: categories,
-                datasets: [{ label: `Average Overall Scale Score`, data: scores, backgroundColor: colors, hoverOffset: 4 }]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'top' },
-                    title: { display: true, text: `${chartTitlePrefix} (${currentDatasetYear})` },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                let label = context.label || '';
-                                if (label) {
-                                    label += ': ';
-                                }
-                                if (context.parsed !== null) {
-                                    let value = typeof context.parsed === 'object' ? context.parsed.y : context.parsed;
-                                    label += value.toFixed(2);
-                                }
-                                return label;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }
 });
